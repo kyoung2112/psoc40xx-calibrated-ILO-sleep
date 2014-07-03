@@ -52,7 +52,7 @@
 /* This is the period we want from the WDT interrupt in ms */
 #define WDT_PERIOD_MS		500u
 
-#define DISABLE_WDT_RESET	TRUE
+#define DISABLE_WDT_RESET	TRUE	/* TRUE to disable watchdog timer reset */
 
 uint32 ILODelayCycles;	/* ILO cycles for a given delay */
 
@@ -68,9 +68,7 @@ int main()
 	
 	/* Print Charaters on PC UART Terminal */
 	SW_TX_PutCRLF();	
-	SW_TX_PutCRLF();
-	SW_TX_PutString("CYPRESS SEMICONDUCTOR");
-	SW_TX_PutCRLF();
+	SW_TX_PutString("PSoC Rocks!");
 	SW_TX_PutCRLF();
 	SW_TX_PutString("ILO Measurement:  0x");
 	
