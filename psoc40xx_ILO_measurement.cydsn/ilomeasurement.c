@@ -1,15 +1,10 @@
 /*******************************************************************************
-* Project Name:      NXT_ID
+* File Name:      ilomeasurement.c
 * Version:           1.0
-* Device Used:       CY8C44245AXI-483
+* Device Used:       CY8C4014LQI-422 
 * Software Used:     PSoC Creator 3.0 SP1
 * Compiler Used:     ARM GCC 4.7.3 
-* Related Hardware:  CY8CKIT-042 
-********************************************************************************
-* Theory of Operation:
-*	Measures ILO against internal main oscillator by using Systick (clocked from CPU clock)
-*	and the watchdog timer (clocked from the ILO). Based on code found at XAV-409. 
-*
+* Related Hardware:  CY8CKIT-040 
 *********************************************************************************
 * Copyright (2014), Cypress Semiconductor Corporation.
 ********************************************************************************
@@ -40,34 +35,64 @@
 * liability. Use of this Software may be limited by and subject to the applicable
 * Cypress software license agreement.
 */
-#include <project.h>
+#include "project.h"
 #include "ilomeasurement.h"
 
-int main()
+/* 
+**************************************************************
+* This function returns the measured ILO frequency in kHz.
+* NOTE: Disables Global Interrupts for an accurate measurement 
+***************************************************************
+*/
+uint16 ILO_Calibration(void)
 {
-	uint32 wdValue;
-	uint32 systValue;
-	uint16 outword;
-	CyGlobalIntEnable; 
-	SW_TX_Start();	
+	uint16 WDTBegin, WDTEnd, WDTVal;
+	uint32 SysTickBegin, SysTickEnd;
 	
-	/* Print Charaters on PC UART Terminal */
-	SW_TX_PutCRLF();	
-	SW_TX_PutCRLF();
-	SW_TX_PutString("CYPRESS SEMICONDUCTOR");
-	SW_TX_PutCRLF();
-	SW_TX_PutCRLF();
-	SW_TX_PutString("ILO Measurement:  ");
-	SW_TX_PutHexInt((uint16)ILO_Calibration());
-	SW_TX_PutCRLF();
-		
-    for(;;)
-    {
-		
-		
-    }
-}
+	/* Clear systick counter */
+	CY_SET_REG32(CYREG_CM0_SYST_CVR, 0);
+	
+	/* Set systick reload to full 24-bit value */
+	CY_SET_REG32(CYREG_CM0_SYST_RVR, 0x0FFFFFF);
 
-
+	/* Enable systick counter */
+	CY_SET_REG32(CYREG_CM0_SYST_CSR,(uint32)5u);
+	
+	CyGlobalIntDisable;
+	WDTBegin = CySysWdtReadCount();
+	
+	/* Wait for WDT transition */
+	do
+	{
+		WDTVal = CySysWdtReadCount();
+	}
+	while(WDTVal  == WDTBegin);
+	
+	/* Read initial Systick value */
+	SysTickBegin = CY_GET_REG32(CYREG_CM0_SYST_CVR); 
+	
+	WDTBegin = WDTVal;
+	
+	/* Looking for 2 ILO counts */
+	WDTEnd = WDTVal + ILO_CYCLES;
+	
+	while (CySysWdtReadCount() != WDTEnd);
+	
+	/* Read ending Systick value */
+	SysTickEnd = CY_GET_REG32(CYREG_CM0_SYST_CVR); 
+	
+	CyGlobalIntEnable;
+	
+	/* Check for overflow */
+	//regData = CM0->SYST_CSR; ///Countflag
+   ///if ( regData & BIT16 ) return DEFAULT_ILO; /// COUNTFLAG is set   
+   /// Check that the SYST_CSR COUNTFLAG has not been set. If set it means there is overflow    
+   /// If overflow return 32KHz
+	
+	return (uint16)((CYDEV_BCLK__HFCLK__KHZ*2)/(SysTickBegin - SysTickEnd));
+	
+	
+	
+	}
 
 /* [] END OF FILE */

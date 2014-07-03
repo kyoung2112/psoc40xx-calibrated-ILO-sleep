@@ -1,15 +1,10 @@
 /*******************************************************************************
-* Project Name:      NXT_ID
+* File Name:      ilomeasurement.h
 * Version:           1.0
-* Device Used:       CY8C44245AXI-483
+* Device Used:       CY8C4014LQI-422 
 * Software Used:     PSoC Creator 3.0 SP1
 * Compiler Used:     ARM GCC 4.7.3 
-* Related Hardware:  CY8CKIT-042 
-********************************************************************************
-* Theory of Operation:
-*	Measures ILO against internal main oscillator by using Systick (clocked from CPU clock)
-*	and the watchdog timer (clocked from the ILO). Based on code found at XAV-409. 
-*
+* Related Hardware:  CY8CKIT-040 
 *********************************************************************************
 * Copyright (2014), Cypress Semiconductor Corporation.
 ********************************************************************************
@@ -40,34 +35,14 @@
 * liability. Use of this Software may be limited by and subject to the applicable
 * Cypress software license agreement.
 */
-#include <project.h>
-#include "ilomeasurement.h"
 
-int main()
-{
-	uint32 wdValue;
-	uint32 systValue;
-	uint16 outword;
-	CyGlobalIntEnable; 
-	SW_TX_Start();	
-	
-	/* Print Charaters on PC UART Terminal */
-	SW_TX_PutCRLF();	
-	SW_TX_PutCRLF();
-	SW_TX_PutString("CYPRESS SEMICONDUCTOR");
-	SW_TX_PutCRLF();
-	SW_TX_PutCRLF();
-	SW_TX_PutString("ILO Measurement:  ");
-	SW_TX_PutHexInt((uint16)ILO_Calibration());
-	SW_TX_PutCRLF();
-		
-    for(;;)
-    {
-		
-		
-    }
-}
+#include "project.h"
 
+/* How many ILO cycles to use in measurement */
+#define ILO_CYCLES	2u
+
+/* Prototype */
+uint16 ILO_Calibration(void);
 
 
 /* [] END OF FILE */
