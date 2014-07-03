@@ -1,14 +1,17 @@
 /*******************************************************************************
-* Project Name:      NXT_ID
-* Version:           1.0
-* Device Used:       CY8C44245AXI-483
+* Project Name:      psoc40xx_ILO_measurement
+* Device Used:       CY8C4014LQI-422 
 * Software Used:     PSoC Creator 3.0 SP1
 * Compiler Used:     ARM GCC 4.7.3 
-* Related Hardware:  CY8CKIT-042 
+* Related Hardware:  CY8CKIT-040 
 ********************************************************************************
 * Theory of Operation:
 *	Measures ILO against internal main oscillator by using Systick (clocked from CPU clock)
-*	and the watchdog timer (clocked from the ILO). Based on code found at XAV-409. 
+*	and the watchdog timer (clocked from the ILO). The demo project calls the routine
+*	and prints out the return value (ILO freq in kHz) in hex. It also sets up a WDT interrupt
+*	to wake the processor from deep sleep on a fixed interval. The interval uses the
+*	measured ILO frequency to set its accuracy. Probing R30 on the KIT-040 will allow
+*	oscilloscope/frequency counter measurement of the resulting accuracy.
 *
 *********************************************************************************
 * Copyright (2014), Cypress Semiconductor Corporation.
@@ -43,11 +46,23 @@
 #include <project.h>
 #include "ilomeasurement.h"
 
+#define 	TRUE	1u
+#define 	FALSE	0u
+
+/* This is the period we want from the WDT interrupt in ms */
+#define WDT_PERIOD_MS		500u
+
+#define DISABLE_WDT_RESET	TRUE
+
+uint32 ILODelayCycles;	/* ILO cycles for a given delay */
+
+/* Prototype watchdog ISR */
+CY_ISR(WDT_ISR);
+
 int main()
 {
-	uint32 wdValue;
-	uint32 systValue;
-	uint16 outword;
+	
+	uint8 ILOFreqkHz;			/* ILO frequency in kHz */
 	CyGlobalIntEnable; 
 	SW_TX_Start();	
 	
@@ -57,15 +72,49 @@ int main()
 	SW_TX_PutString("CYPRESS SEMICONDUCTOR");
 	SW_TX_PutCRLF();
 	SW_TX_PutCRLF();
-	SW_TX_PutString("ILO Measurement:  ");
-	SW_TX_PutHexInt((uint16)ILO_Calibration());
+	SW_TX_PutString("ILO Measurement:  0x");
+	
+	ILOFreqkHz = (uint8)ILO_Calibration();	/* Note, this function disables global interrupts for a while */
+	SW_TX_PutHexByte(ILOFreqkHz);
 	SW_TX_PutCRLF();
-		
+	
+	/* Now let's set up our WDT interrupt so that we can wake up on an accurate interval. */
+	#if DISABLE_WDT_RESET
+	/* Disable watchdog reset */
+	CySysWdtDisable();	
+	#endif
+	
+	ILODelayCycles = WDT_PERIOD_MS * ILOFreqkHz;
+	
+	/* Update the match register for generating a periodic WDT ISR.
+    Note: In order to do a periodic ISR using WDT, Match value needs to be
+    updated every WDT ISR with the desired time value added on top of the
+    existing match value */
+    CySysWdtWriteMatch(ILODelayCycles);
+      
+    /* Enable the WDT interrupt in SRSS INTR mask register */
+    CySysWdtUnmaskInterrupt();
+  
+    /* Map the WatchDog_ISR vector to the WDT_ISR */
+    isr_WDT_StartEx(WDT_ISR);      	
+
     for(;;)
     {
 		
+		LED_Write(1^LED_Read());
+		CySysPmDeepSleep();
+		
 		
     }
+}
+
+CY_ISR(WDT_ISR)
+{
+	/* Clear WDT interrupt */ 
+	CySysWdtClearInterrupt(); 
+ 
+ 	/* Write WDT_MATCH with current match value + desired match value */ 
+ 	CySysWdtWriteMatch((uint16)CySysWdtReadMatch()+ILODelayCycles); 
 }
 
 

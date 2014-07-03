@@ -39,7 +39,7 @@
 #include "project.h"
 
 /* How many ILO cycles to use in measurement */
-#define ILO_CYCLES	2u
+#define ILO_MEAS_CYCLES	2u
 
 /* Prototype */
 uint16 ILO_Calibration(void);

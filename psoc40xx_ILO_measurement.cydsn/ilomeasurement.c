@@ -61,7 +61,7 @@ uint16 ILO_Calibration(void)
 	CyGlobalIntDisable;
 	WDTBegin = CySysWdtReadCount();
 	
-	/* Wait for WDT transition */
+	/* Wait for WDT transition to make sure we start on an edge */
 	do
 	{
 		WDTVal = CySysWdtReadCount();
@@ -71,11 +71,13 @@ uint16 ILO_Calibration(void)
 	/* Read initial Systick value */
 	SysTickBegin = CY_GET_REG32(CYREG_CM0_SYST_CVR); 
 	
+	/* This is the count at the edge we waited for */
 	WDTBegin = WDTVal;
 	
-	/* Looking for 2 ILO counts */
-	WDTEnd = WDTVal + ILO_CYCLES;
+	/* Set up our end as ILO_MEAS_CYCLES more ILO cycles */
+	WDTEnd = WDTVal + ILO_MEAS_CYCLES;
 	
+	/* Waitt here for our WDT end count to be reached */
 	while (CySysWdtReadCount() != WDTEnd);
 	
 	/* Read ending Systick value */
@@ -89,7 +91,11 @@ uint16 ILO_Calibration(void)
    /// Check that the SYST_CSR COUNTFLAG has not been set. If set it means there is overflow    
    /// If overflow return 32KHz
 	
-	return (uint16)((CYDEV_BCLK__HFCLK__KHZ*2)/(SysTickBegin - SysTickEnd));
+	/* SysTick is a down counter, so SysTickBegin - SysTickEnd is the number of SYSCLK
+	*	cycles in ILO_MEAS_CYCLES rising edges of ILO clock. This outputs the ILO freq 
+	*	in kHz
+	*/
+	return (uint16)((CYDEV_BCLK__SYSCLK__KHZ*ILO_MEAS_CYCLES)/(SysTickBegin - SysTickEnd));
 	
 	
 	
